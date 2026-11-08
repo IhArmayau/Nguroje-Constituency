@@ -37,6 +37,20 @@ const parseUrl = (reqUrl) => {
   return { pathname: parsed.pathname, searchParams: parsed.searchParams };
 };
 
+// Helper: serve dashboard.html first, fall back to index.html
+function serveDashboard(req, res) {
+  let filePath = path.join(__dirname, 'dashboard.html');
+  if (!fs.existsSync(filePath)) filePath = path.join(__dirname, 'index.html');
+  if (fs.existsSync(filePath)) {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    fs.createReadStream(filePath).pipe(res);
+    return true;
+  }
+  res.writeHead(404, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ status: 'error', message: 'dashboard.html not found' }));
+  return false;
+}
+
 const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET, POST');
@@ -57,18 +71,10 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Serve Live Analytics Dashboard as the root homepage - Nguroje uses index.html
+  // Serve Live Analytics Dashboard as the root homepage - Nguroje uses dashboard.html
   if (req.method === 'GET' && pathname === '/') {
-    const filePath = path.join(__dirname, 'index.html');
-    if (fs.existsSync(filePath)) {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      fs.createReadStream(filePath).pipe(res);
-      return;
-    } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'error', message: 'index.html not found' }));
-      return;
-    }
+    serveDashboard(req, res);
+    return;
   }
 
   // Serve Situation Entry Console at /situation-room.html and /situation-entry.html
@@ -86,16 +92,8 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'GET' && (pathname === '/index.html' || pathname === '/dashboard.html')) {
-    const filePath = path.join(__dirname, 'index.html');
-    if (fs.existsSync(filePath)) {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      fs.createReadStream(filePath).pipe(res);
-      return;
-    } else {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ status: 'error', message: 'index.html not found' }));
-      return;
-    }
+    serveDashboard(req, res);
+    return;
   }
 
   // Serve PWA manifest.json
